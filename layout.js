@@ -1,0 +1,2 @@
+export const metadata={title:"VideoForge AI",description:"AI text-to-video generator"};
+export default function Layout({children}){return <html lang="en"><body style={{margin:0,fontFamily:"Arial,sans-serif"}}>{children}</body></html>}
