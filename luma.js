@@ -2,7 +2,7 @@ const BASE =
   "https://api.lumalabs.ai/dream-machine/v1";
 
 function headers() {
-  const key = process.env.LUMAAI_API_KEY;
+   const key = process.env.LUMAAI_API_KEY?.trim();
 
   if (!key) {
     throw new Error("LUMAAI_API_KEY is not configured");
