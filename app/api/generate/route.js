@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createVideo } from "../../../../lib/luma";
+import { createVideo } from "../../../luma";
 
 export async function POST(req) {
   try {
