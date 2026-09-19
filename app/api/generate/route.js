@@ -5,10 +5,13 @@ export async function POST(req) {
     const body = await req.json();
 
     const prompt = String(body?.prompt || "").trim();
-    const style =
-      body?.style === "Realistic" ? "Realistic" : "Cartoon";
 
-    const allowedRatios = ["9:16", "16:9", "1:1"];
+    const style =
+      body?.style === "Realistic"
+        ? "Realistic"
+        : "Cartoon";
+
+    const allowedRatios = ["9:16", "16:9", "1:1", "4:3", "3:4"];
     const aspectRatio = allowedRatios.includes(body?.aspectRatio)
       ? body.aspectRatio
       : "9:16";
@@ -20,18 +23,20 @@ export async function POST(req) {
       );
     }
 
-    if (prompt.length > 2000) {
+    if (prompt.length > 5000) {
       return NextResponse.json(
         { error: "Prompt is too long" },
         { status: 400 }
       );
     }
 
-    const apiKey = process.env.LUMA_API_KEY;
+    // Server-side only
+    const apiKey = process.env.LUMA_API_KEY?.trim();
 
     if (!apiKey) {
+      console.error("LUMA_API_KEY is missing");
       return NextResponse.json(
-        { error: "LUMA_API_KEY is not configured" },
+        { error: "LUMA_API_KEY is not configured on the server" },
         { status: 500 }
       );
     }
@@ -59,7 +64,7 @@ export async function POST(req) {
       }
     );
 
-    const data = await response.json().catch(() => ({}));
+    const data = await response.json();
 
     if (!response.ok) {
       console.error("Luma API error:", data);
@@ -72,7 +77,7 @@ export async function POST(req) {
             data?.error ||
             `Luma API error (${response.status})`,
         },
-        { status: response.status >= 400 ? 500 : response.status }
+        { status: response.status >= 400 ? response.status : 500 }
       );
     }
 
@@ -93,4 +98,4 @@ export async function POST(req) {
       { status: 500 }
     );
   }
-}
+      }
