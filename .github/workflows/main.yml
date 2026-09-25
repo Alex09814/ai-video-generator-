@@ -8,35 +8,54 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+
+      # 1. Checkout
       - name: Checkout
         uses: actions/checkout@v4
 
+
+      # 2. Setup Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
+
+      # 3. Install dependencies
       - name: Install dependencies
         run: npm install
 
+
+      # 4. Install TypeScript
       - name: Install TypeScript
         run: npm install -D typescript
 
-      - name: Install Capacitor
-        run: npm install @capacitor/core @capacitor/cli @capacitor/android
 
+      # 5. Install Capacitor
+      - name: Install Capacitor
+        run: |
+          npm install @capacitor/core @capacitor/cli @capacitor/android
+
+
+      # 6. Build web app
       - name: Build web app
         run: npm run build
 
+
+      # 7. Create Android project if missing
       - name: Create Android project
         run: |
           if [ ! -d "android" ]; then
             npx cap add android
           fi
 
+
+      # 8. Sync Capacitor
       - name: Sync Capacitor
         run: npx cap sync android
 
+
+      # 9. Fix Kotlin duplicate classes
       - name: Fix Kotlin duplicate classes
         run: |
           cat >> android/build.gradle <<'EOF'
@@ -44,27 +63,53 @@ jobs:
           allprojects {
               configurations.all {
                   resolutionStrategy {
-                      force 'org.jetbrains.kotlin:kotlin-stdlib:2.0.21'
-                      force 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:2.0.21'
-                      force 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.0.21'
+                      force 'org.jetbrains.kotlin:kotlin-stdlib:1.9.24'
+                      force 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.24'
+                      force 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.24'
                   }
               }
           }
           EOF
 
+
+      # 10. Setup Java
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 21
 
+
+      # 11. Decode Android keystore
       - name: Decode Android keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         run: |
           printf '%s' "$KEYSTORE_BASE64" | base64 --decode > android/app/toonzap-release.keystore
+
+          echo "Keystore file:"
           ls -lh android/app/toonzap-release.keystore
 
+
+      # 12. Verify keystore + alias
+      - name: Verify Android keystore
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        run: |
+          echo "Checking keystore..."
+
+          test -s android/app/toonzap-release.keystore
+
+          keytool -list \
+            -keystore android/app/toonzap-release.keystore \
+            -storepass "$KEYSTORE_PASSWORD" \
+            -alias "$KEY_ALIAS"
+
+          echo "Keystore and alias verified successfully."
+
+
+      # 13. Configure Android signing
       - name: Configure Android signing
         run: |
           cat >> android/app/build.gradle <<'EOF'
@@ -72,7 +117,7 @@ jobs:
           android {
               signingConfigs {
                   release {
-                      storeFile file(System.getenv("KEYSTORE_FILE"))
+                      storeFile file("toonzap-release.keystore")
                       storePassword System.getenv("KEYSTORE_PASSWORD")
                       keyAlias System.getenv("KEY_ALIAS")
                       keyPassword System.getenv("KEY_PASSWORD")
@@ -87,20 +132,27 @@ jobs:
           }
           EOF
 
+
+      # 14. Build signed AAB
       - name: Build signed AAB
         env:
-          KEYSTORE_FILE: ${{ github.workspace }}/android/app/toonzap-release.keystore
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           cd android
+
           chmod +x gradlew
+
           ./gradlew clean
+
           ./gradlew bundleRelease
 
+
+      # 15. Upload signed AAB
       - name: Upload signed AAB
         uses: actions/upload-artifact@v4
         with:
           name: ToonZap-Car-Racing-AAB
           path: android/app/build/outputs/bundle/release/*.aab
+          if-no-files-found: error
