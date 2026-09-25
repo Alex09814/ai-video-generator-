@@ -1,6 +1,6 @@
 module.exports = {
-  appId: 'com.videoforge.ai',
-  appName: 'VideoForge AI',
+  appId: 'com.toonzap.carracing',
+appName: 'ToonZap Car Racing',
   webDir: 'public',
 
   server: {
